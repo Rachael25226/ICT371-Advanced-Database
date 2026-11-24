@@ -1,0 +1,264 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-08-Transport/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 8 - Transport Fleet Maintenance ================
+psql:Question-08-Transport/01_tables.sql:10: NOTICE:  schema "q08_transport" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+CALL
+CALL
+CALL
+CALL
+CALL
+CALL
+ vehicle_id | registration | current_odometer | last_service_odometer | km_since_service | service_due 
+------------+--------------+------------------+-----------------------+------------------+-------------
+          1 | ABC 1234     |            12600 |                 10000 |             2600 | f
+          2 | BCD 2345     |            55250 |                 50000 |             5250 | t
+          3 | CDE 3456     |            86900 |                 80000 |             6900 | t
+(3 rows)
+
+ trip_id | vehicle_id |  trip_on   | start_odometer | end_odometer 
+---------+------------+------------+----------------+--------------
+       1 |          1 | 2026-11-18 |          12000 |        12350
+       2 |          2 | 2026-11-19 |          54800 |        55100
+       3 |          3 | 2026-11-20 |          86000 |        86420
+       4 |          1 | 2026-11-21 |          12350 |        12600
+       5 |          2 | 2026-11-22 |          55100 |        55250
+       6 |          3 | 2026-11-23 |          86420 |        86900
+(6 rows)
+
+SET
+CREATE VIEW
+ vehicle_id | registration | km_since_service 
+------------+--------------+------------------
+          2 | BCD 2345     |             5250
+          3 | CDE 3456     |             6900
+(2 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                                           QUERY PLAN                                           
+------------------------------------------------------------------------------------------------
+ Seq Scan on trips  (cost=0.00..1.15 rows=2 width=16)
+   Filter: ((vehicle_id = 2) AND (trip_on <= CURRENT_DATE) AND (trip_on >= (CURRENT_DATE - 7)))
+(2 rows)
+
+BEGIN
+SET
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Index Scan using idx_trips_vehicle_trip_on on trips  (cost=0.14..8.19 rows=2 width=16)
+   Index Cond: ((vehicle_id = 2) AND (trip_on >= (CURRENT_DATE - 7)) AND (trip_on <= CURRENT_DATE))
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ vehicle_id | km_since_service | flagged_on 
+------------+------------------+------------
+          2 |             5250 | 2026-11-24
+          3 |             6900 | 2026-11-24
+(2 rows)
+
+CALL
+ vehicle_id | km_since_service | flagged_on 
+------------+------------------+------------
+          2 |             5250 | 2026-11-24
+          3 |             6900 | 2026-11-24
+(2 rows)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                expect_error                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative odometer rejected  [rejected: new row for relation "vehicles" violates check constraint "chk_vehicles_current_non_negative"]
+(1 row)
+
+                                                                            expect_error                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: last service beyond current odometer rejected  [rejected: new row for relation "vehicles" violates check constraint "chk_vehicles_service_not_after_current"]
+(1 row)
+
+                                                         expect_error                                                          
+-------------------------------------------------------------------------------------------------------------------------------
+ PASS: duplicate registration rejected  [rejected: duplicate key value violates unique constraint "vehicles_registration_key"]
+(1 row)
+
+            assert_true             
+------------------------------------
+ PASS: three vehicles and six trips
+(1 row)
+
+                    assert_true                    
+---------------------------------------------------
+ PASS: vehicles are at different service positions
+(1 row)
+
+--- (b) fn_service_due ---
+            assert_true             
+------------------------------------
+ PASS: vehicle 1 (2,600 km) not due
+(1 row)
+
+          assert_true           
+--------------------------------
+ PASS: vehicle 2 (5,250 km) due
+(1 row)
+
+          assert_true           
+--------------------------------
+ PASS: vehicle 3 (6,900 km) due
+(1 row)
+
+                           expect_error                            
+-------------------------------------------------------------------
+ PASS: unknown vehicle rejected  [rejected: Unknown vehicle_id 99]
+(1 row)
+
+--- (c) pr_record_trip ---
+                           expect_error                            
+-------------------------------------------------------------------
+ PASS: unknown vehicle rejected  [rejected: Unknown vehicle_id 99]
+(1 row)
+
+                                                expect_error                                                 
+-------------------------------------------------------------------------------------------------------------
+ PASS: end equal to start rejected  [rejected: End odometer 12600 must be greater than start odometer 12600]
+(1 row)
+
+                                               expect_error                                               
+----------------------------------------------------------------------------------------------------------
+ PASS: end below start rejected  [rejected: End odometer 12500 must be greater than start odometer 12600]
+(1 row)
+
+                                  expect_error                                   
+---------------------------------------------------------------------------------
+ PASS: missing trip date rejected  [rejected: Trip date (p_trip_on) is required]
+(1 row)
+
+                                                                    expect_error                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: start not equal to current odometer rejected (by the trigger)  [rejected: Trip must start at the vehicle's current odometer 12600, not 12000]
+(1 row)
+
+                             assert_true                             
+---------------------------------------------------------------------
+ PASS: rejected trips stored nothing and left the odometer unchanged
+(1 row)
+
+                     assert_true                     
+-----------------------------------------------------
+ PASS: pr_record_trip contains no UPDATE of vehicles
+(1 row)
+
+--- (d) trigger ---
+CALL
+                                   assert_true                                    
+----------------------------------------------------------------------------------
+ PASS: odometer moved to the trip end (15,000) - exactly once, not 15,000 + 2,400
+(1 row)
+
+                             assert_true                              
+----------------------------------------------------------------------
+ PASS: vehicle 1 now exactly 5,000 km since service -> due (boundary)
+(1 row)
+
+                                                                 expect_error                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct SQL trip starting at the wrong odometer rejected  [rejected: Trip must start at the vehicle's current odometer 55250, not 55000]
+(1 row)
+
+                                                               expect_error                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct SQL trip with invalid mileage rejected  [rejected: Invalid mileage: start 55250, end 55200 (end must be greater than start)]
+(1 row)
+
+INSERT 0 1
+                       assert_true                       
+---------------------------------------------------------
+ PASS: a valid direct SQL trip also updates the odometer
+(1 row)
+
+                                  assert_true                                  
+-------------------------------------------------------------------------------
+ PASS: every trip starts exactly where the previous trip of that vehicle ended
+(1 row)
+
+--- (e) view ---
+                   assert_true                   
+-------------------------------------------------
+ PASS: all three vehicles now meet the threshold
+(1 row)
+
+UPDATE 1
+               assert_true                
+------------------------------------------
+ PASS: a serviced vehicle leaves the view
+(1 row)
+
+ vehicle_id | registration | km_since_service 
+------------+--------------+------------------
+          1 | ABC 1234     |             5000
+          3 | CDE 3456     |             6900
+(2 rows)
+
+--- (f) index ---
+              assert_true               
+----------------------------------------
+ PASS: idx_trips_vehicle_trip_on exists
+(1 row)
+
+--- (g) pr_refresh_service_alerts ---
+CALL
+CALL
+                                      assert_true                                      
+---------------------------------------------------------------------------------------
+ PASS: alerts for due vehicles 1 and 3 only; vehicle 2 alert removed after its service
+(1 row)
+
+               assert_true                
+------------------------------------------
+ PASS: one alert per vehicle after reruns
+(1 row)
+
+CALL
+CALL
+                          assert_true                          
+---------------------------------------------------------------
+ PASS: existing alert updated with the new distance (7,000 km)
+(1 row)
+
+UPDATE 1
+CALL
+                          assert_true                           
+----------------------------------------------------------------
+ PASS: alert removed once service makes vehicle 3 no longer due
+(1 row)
+
+ vehicle_id | km_since_service | flagged_on 
+------------+------------------+------------
+          1 |             5000 | 2026-11-24
+(1 row)
+
+=== Question 8: all tests passed ===
+-- psql exit code: 0

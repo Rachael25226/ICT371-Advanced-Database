@@ -1,0 +1,333 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-10-Scholarships/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 10 - Scholarship Application Assessment ================
+psql:Question-10-Scholarships/01_tables.sql:9: NOTICE:  schema "q10_scholarships" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+INSERT 0 6
+ application_id | student_id | age_at_application | monthly_income | average_mark | submitted_on | status  
+----------------+------------+--------------------+----------------+--------------+--------------+---------
+              1 |          1 |                 20 |        2500.00 |        75.00 | 2026-11-14   | PENDING
+              2 |          2 |                 18 |        3000.00 |        70.00 | 2026-11-15   | PENDING
+              3 |          3 |                 25 |        2999.99 |        88.00 | 2026-11-16   | PENDING
+              4 |          1 |                 26 |        2000.00 |        80.00 | 2026-11-17   | PENDING
+              5 |          2 |                 22 |        3000.01 |        85.00 | 2026-11-18   | PENDING
+              6 |          3 |                 19 |        1500.00 |        69.99 | 2026-11-19   | PENDING
+(6 rows)
+
+SET
+CREATE VIEW
+ student_number | full_name | average_mark | status 
+----------------+-----------+--------------+--------
+(0 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on applications  (cost=0.00..1.15 rows=6 width=12)
+   Filter: (((status)::text = 'PENDING'::text) AND (submitted_on <= CURRENT_DATE) AND (submitted_on >= (CURRENT_DATE - 30)))
+(2 rows)
+
+BEGIN
+SET
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_applications_status_submitted on applications  (cost=0.14..12.28 rows=6 width=12)
+   Index Cond: (((status)::text = 'PENDING'::text) AND (submitted_on >= (CURRENT_DATE - 30)) AND (submitted_on <= CURRENT_DATE))
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ application_id | age_at_application | monthly_income | average_mark |  status  
+----------------+--------------------+----------------+--------------+----------
+              1 |                 20 |        2500.00 |        75.00 | APPROVED
+              2 |                 18 |        3000.00 |        70.00 | APPROVED
+              3 |                 25 |        2999.99 |        88.00 | APPROVED
+              4 |                 26 |        2000.00 |        80.00 | REJECTED
+              5 |                 22 |        3000.01 |        85.00 | REJECTED
+              6 |                 19 |        1500.00 |        69.99 | REJECTED
+(6 rows)
+
+ audit_id | application_id | old_status | new_status |          changed_at           
+----------+----------------+------------+------------+-------------------------------
+        1 |              1 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        2 |              2 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        3 |              3 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        4 |              4 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+        5 |              5 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+        6 |              6 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+(6 rows)
+
+CALL
+ audit_rows_after_rerun 
+------------------------
+                      6
+(1 row)
+
+ student_number |   full_name   | average_mark |  status  
+----------------+---------------+--------------+----------
+ SCH-2026-01    | Agnes Mwamba  |        75.00 | APPROVED
+ SCH-2026-02    | Benson Zimba  |        70.00 | APPROVED
+ SCH-2026-03    | Clara Musonda |        88.00 | APPROVED
+(3 rows)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                expect_error                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: non-positive age rejected  [rejected: new row for relation "applications" violates check constraint "chk_applications_age_positive"]
+(1 row)
+
+                                                                   expect_error                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative income rejected  [rejected: new row for relation "applications" violates check constraint "chk_applications_income_non_negative"]
+(1 row)
+
+                                                              expect_error                                                              
+----------------------------------------------------------------------------------------------------------------------------------------
+ PASS: mark above 100 rejected  [rejected: new row for relation "applications" violates check constraint "chk_applications_mark_range"]
+(1 row)
+
+                                                                         expect_error                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: status outside PENDING/APPROVED/REJECTED rejected  [rejected: new row for relation "applications" violates check constraint "chk_applications_status"]
+(1 row)
+
+                      assert_true                      
+-------------------------------------------------------
+ PASS: six applications across at least three students
+(1 row)
+
+--- (b) fn_scholarship_eligible ---
+            assert_true             
+------------------------------------
+ PASS: typical qualifying applicant
+(1 row)
+
+                       assert_true                        
+----------------------------------------------------------
+ PASS: boundary: age 18, income 3000, mark 70 all qualify
+(1 row)
+
+           assert_true            
+----------------------------------
+ PASS: boundary: age 25 qualifies
+(1 row)
+
+      assert_true       
+------------------------
+ PASS: age 17 too young
+(1 row)
+
+     assert_true      
+----------------------
+ PASS: age 26 too old
+(1 row)
+
+             assert_true             
+-------------------------------------
+ PASS: income 3000.01 over the limit
+(1 row)
+
+        assert_true        
+---------------------------
+ PASS: mark 69.99 below 70
+(1 row)
+
+                                           expect_error                                            
+---------------------------------------------------------------------------------------------------
+ PASS: NULL age rejected  [rejected: Age, income and mark are all required (got <NULL>, 1000, 80)]
+(1 row)
+
+                                            expect_error                                            
+----------------------------------------------------------------------------------------------------
+ PASS: NULL income rejected  [rejected: Age, income and mark are all required (got 20, <NULL>, 80)]
+(1 row)
+
+                                            expect_error                                            
+----------------------------------------------------------------------------------------------------
+ PASS: NULL mark rejected  [rejected: Age, income and mark are all required (got 20, 1000, <NULL>)]
+(1 row)
+
+                                       expect_error                                       
+------------------------------------------------------------------------------------------
+ PASS: negative income rejected  [rejected: Invalid income -1: income cannot be negative]
+(1 row)
+
+                               expect_error                               
+--------------------------------------------------------------------------
+ PASS: zero age rejected  [rejected: Invalid age 0: age must be positive]
+(1 row)
+
+                                 expect_error                                  
+-------------------------------------------------------------------------------
+ PASS: negative age rejected  [rejected: Invalid age -3: age must be positive]
+(1 row)
+
+                                        expect_error                                         
+---------------------------------------------------------------------------------------------
+ PASS: mark above 100 rejected  [rejected: Invalid mark 101: mark must be between 0 and 100]
+(1 row)
+
+                                        expect_error                                        
+--------------------------------------------------------------------------------------------
+ PASS: mark below 0 rejected  [rejected: Invalid mark -0.5: mark must be between 0 and 100]
+(1 row)
+
+--- (c) pr_assess_application (the six seeds were assessed by 08_job_procedure.sql) ---
+                                assert_true                                 
+----------------------------------------------------------------------------
+ PASS: seeded applications decided correctly, including every boundary case
+(1 row)
+
+                                            expect_error                                             
+-----------------------------------------------------------------------------------------------------
+ PASS: unknown application rejected with a clear message  [rejected: Application 999 does not exist]
+(1 row)
+
+                                                    expect_error                                                    
+--------------------------------------------------------------------------------------------------------------------
+ PASS: already APPROVED application rejected  [rejected: Application 1 has already been assessed (status APPROVED)]
+(1 row)
+
+                                                    expect_error                                                    
+--------------------------------------------------------------------------------------------------------------------
+ PASS: already REJECTED application rejected  [rejected: Application 4 has already been assessed (status REJECTED)]
+(1 row)
+
+INSERT 0 1
+CALL
+                     assert_true                     
+-----------------------------------------------------
+ PASS: new PENDING application assessed and APPROVED
+(1 row)
+
+--- (d) trigger ---
+                assert_true                
+-------------------------------------------
+ PASS: seven decisions -> seven audit rows
+(1 row)
+
+                     assert_true                     
+-----------------------------------------------------
+ PASS: audit row has OLD, NEW status and a timestamp
+(1 row)
+
+UPDATE 1
+                  assert_true                  
+-----------------------------------------------
+ PASS: unchanged status creates no audit entry
+(1 row)
+
+UPDATE 1
+                     assert_true                     
+-----------------------------------------------------
+ PASS: a real status change by direct SQL is audited
+(1 row)
+
+UPDATE 1
+ audit_id | application_id | old_status | new_status |          changed_at           
+----------+----------------+------------+------------+-------------------------------
+        1 |              1 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        2 |              2 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        3 |              3 | PENDING    | APPROVED   | 2026-11-24 19:41:29.235395+00
+        4 |              4 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+        5 |              5 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+        6 |              6 | PENDING    | REJECTED   | 2026-11-24 19:41:29.235395+00
+        7 |             11 | PENDING    | APPROVED   | 2026-11-24 19:41:29.264715+00
+        8 |             11 | APPROVED   | REJECTED   | 2026-11-24 19:41:29.270149+00
+        9 |             11 | REJECTED   | APPROVED   | 2026-11-24 19:41:29.271243+00
+(9 rows)
+
+--- (e) view ---
+                  assert_true                   
+------------------------------------------------
+ PASS: view contains APPROVED applications only
+(1 row)
+
+               assert_true               
+-----------------------------------------
+ PASS: four approved applications listed
+(1 row)
+
+              assert_true              
+---------------------------------------
+ PASS: household income is not exposed
+(1 row)
+
+ student_number |   full_name   | average_mark |  status  
+----------------+---------------+--------------+----------
+ SCH-2026-01    | Agnes Mwamba  |        75.00 | APPROVED
+ SCH-2026-02    | Benson Zimba  |        70.00 | APPROVED
+ SCH-2026-02    | Benson Zimba  |        91.50 | APPROVED
+ SCH-2026-03    | Clara Musonda |        88.00 | APPROVED
+(4 rows)
+
+--- (f) index ---
+                  assert_true                   
+------------------------------------------------
+ PASS: idx_applications_status_submitted exists
+(1 row)
+
+--- (g) pr_assess_pending ---
+INSERT 0 2
+CALL
+               assert_true                
+------------------------------------------
+ PASS: all pending applications processed
+(1 row)
+
+                               assert_true                                
+--------------------------------------------------------------------------
+ PASS: only the two new PENDING applications were assessed (2 audit rows)
+(1 row)
+
+CALL
+CALL
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: reruns reassess nothing and add no duplicate audit entries
+(1 row)
+
+                        assert_true                        
+-----------------------------------------------------------
+ PASS: no application was ever assessed from PENDING twice
+(1 row)
+
+ application_id | age_at_application | monthly_income | average_mark |  status  
+----------------+--------------------+----------------+--------------+----------
+              1 |                 20 |        2500.00 |        75.00 | APPROVED
+              2 |                 18 |        3000.00 |        70.00 | APPROVED
+              3 |                 25 |        2999.99 |        88.00 | APPROVED
+              4 |                 26 |        2000.00 |        80.00 | REJECTED
+              5 |                 22 |        3000.01 |        85.00 | REJECTED
+              6 |                 19 |        1500.00 |        69.99 | REJECTED
+             11 |                 21 |        1800.00 |        91.50 | APPROVED
+             12 |                 23 |        3500.00 |        95.00 | REJECTED
+             13 |                 24 |         900.00 |        72.00 | APPROVED
+(9 rows)
+
+=== Question 10: all tests passed ===
+-- psql exit code: 0

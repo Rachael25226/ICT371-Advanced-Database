@@ -1,0 +1,272 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-07-Water-Billing/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 7 - Water Meter Readings and Billing ================
+psql:Question-07-Water-Billing/01_tables.sql:11: NOTICE:  schema "q07_water_billing" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+INSERT 0 6
+CALL
+CALL
+CALL
+CALL
+CALL
+CALL
+UPDATE 1
+UPDATE 1
+ reading_id |    full_name    | reading_month | previous_reading | current_reading | units | bill_id | charge | amount_paid |   due_on   
+------------+-----------------+---------------+------------------+-----------------+-------+---------+--------+-------------+------------
+          1 | Kapembwa Mutale | 2026-09-01    |           100.00 |          100.00 |  0.00 |       1 |   0.00 |        0.00 | 2026-11-04
+          2 | Kapembwa Mutale | 2026-10-01    |           100.00 |          110.00 | 10.00 |       2 |  50.00 |        0.00 | 2026-12-04
+          3 | Linda Mwenya    | 2026-09-01    |           200.00 |          215.00 | 15.00 |       3 |  90.00 |       40.00 | 2026-11-04
+          4 | Linda Mwenya    | 2026-10-01    |           215.00 |          240.00 | 25.00 |       4 | 170.00 |        0.00 | 2026-12-04
+          5 | Moses Kangwa    | 2026-09-01    |            50.00 |           57.00 |  7.00 |       5 |  35.00 |       35.00 | 2026-11-04
+          6 | Moses Kangwa    | 2026-10-01    |            57.00 |           67.50 | 10.50 |       6 |  54.00 |        0.00 | 2026-12-04
+(6 rows)
+
+SET
+CREATE VIEW
+ bill_id |  full_name   |   due_on   | outstanding_amount 
+---------+--------------+------------+--------------------
+       3 | Linda Mwenya | 2026-11-04 |              50.00
+(1 row)
+
+SET
+CREATE INDEX
+ANALYZE
+                           QUERY PLAN                           
+----------------------------------------------------------------
+ Seq Scan on bills  (cost=0.00..1.11 rows=1 width=44)
+   Filter: ((amount_paid < charge) AND (due_on < CURRENT_DATE))
+(2 rows)
+
+BEGIN
+SET
+                                      QUERY PLAN                                      
+--------------------------------------------------------------------------------------
+ Index Scan using idx_bills_unpaid_due_on on bills  (cost=0.13..8.15 rows=1 width=44)
+   Index Cond: (due_on < CURRENT_DATE)
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ snapshot_date | total_due 
+---------------+-----------
+ 2026-11-24    |    324.00
+(1 row)
+
+CALL
+ snapshot_date | total_due 
+---------------+-----------
+ 2026-11-24    |    324.00
+(1 row)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                   expect_error                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: reading_month not a month start rejected  [rejected: new row for relation "readings" violates check constraint "chk_readings_month_start"]
+(1 row)
+
+                                                                  expect_error                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative meter value rejected  [rejected: new row for relation "readings" violates check constraint "chk_readings_previous_non_negative"]
+(1 row)
+
+                                                                      expect_error                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: second reading for the same customer and month rejected  [rejected: duplicate key value violates unique constraint "uq_readings_customer_month"]
+(1 row)
+
+                                                                 expect_error                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: amount_paid above the charge rejected  [rejected: new row for relation "bills" violates check constraint "chk_bills_amount_paid_range"]
+(1 row)
+
+                                                             expect_error                                                              
+---------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative amount_paid rejected  [rejected: new row for relation "bills" violates check constraint "chk_bills_amount_paid_range"]
+(1 row)
+
+              assert_true               
+----------------------------------------
+ PASS: three customers and six readings
+(1 row)
+
+                       assert_true                        
+----------------------------------------------------------
+ PASS: readings cover zero, exactly 10 and above 10 units
+(1 row)
+
+--- (b) fn_water_charge ---
+       assert_true        
+--------------------------
+ PASS: 0 units    = K0.00
+(1 row)
+
+            assert_true            
+-----------------------------------
+ PASS: 7 units    = 7 x 5 = K35.00
+(1 row)
+
+                    assert_true                    
+---------------------------------------------------
+ PASS: exactly 10 = K50.00 (all in the first band)
+(1 row)
+
+               assert_true                
+------------------------------------------
+ PASS: 10.5 units = 50 + 0.5 x 8 = K54.00
+(1 row)
+
+               assert_true                
+------------------------------------------
+ PASS: 25 units   = 50 + 15 x 8 = K170.00
+(1 row)
+
+                     assert_true                      
+------------------------------------------------------
+ PASS: 3.333 units = 16.665 rounded to exactly K16.67
+(1 row)
+
+                    assert_true                     
+----------------------------------------------------
+ PASS: result always has exactly two decimal places
+(1 row)
+
+                                            expect_error                                             
+-----------------------------------------------------------------------------------------------------
+ PASS: NULL consumption rejected  [rejected: Invalid consumption <NULL>: units must be zero or more]
+(1 row)
+
+                                            expect_error                                             
+-----------------------------------------------------------------------------------------------------
+ PASS: negative consumption rejected  [rejected: Invalid consumption -1: units must be zero or more]
+(1 row)
+
+--- (c) pr_generate_bill ---
+                             assert_true                              
+----------------------------------------------------------------------
+ PASS: every seeded bill charge equals the tariff for its consumption
+(1 row)
+
+                            expect_error                            
+--------------------------------------------------------------------
+ PASS: unknown reading rejected  [rejected: Unknown reading_id 999]
+(1 row)
+
+                                       expect_error                                       
+------------------------------------------------------------------------------------------
+ PASS: reading that already has a bill rejected  [rejected: Reading 1 already has a bill]
+(1 row)
+
+                                 expect_error                                 
+------------------------------------------------------------------------------
+ PASS: missing due date rejected  [rejected: Due date (p_due_on) is required]
+(1 row)
+
+INSERT 0 1
+CALL
+                        assert_true                         
+------------------------------------------------------------
+ PASS: new 12-unit reading billed K66.00 with amount_paid 0
+(1 row)
+
+--- (d) trigger ---
+                                                                           expect_error                                                                           
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct import with current below previous rejected  [rejected: Invalid meter reading for customer 2 (2026-11-01): current 239.99 is below previous 240.00]
+(1 row)
+
+                                                                        expect_error                                                                         
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: UPDATE setting current below previous rejected  [rejected: Invalid meter reading for customer 1 (2026-10-01): current 90.00 is below previous 100.00]
+(1 row)
+
+                    assert_true                     
+----------------------------------------------------
+ PASS: rejected readings were not stored or changed
+(1 row)
+
+INSERT 0 1
+                     assert_true                     
+-----------------------------------------------------
+ PASS: current equal to previous (zero use) accepted
+(1 row)
+
+--- (e) view ---
+                                          assert_true                                          
+-----------------------------------------------------------------------------------------------
+ PASS: only bill 3 is overdue and unpaid (bill 1 is K0, bill 5 fully paid, others not yet due)
+(1 row)
+
+                 assert_true                 
+---------------------------------------------
+ PASS: bill 3 outstanding = 90 - 40 = K50.00
+(1 row)
+
+UPDATE 1
+               assert_true               
+-----------------------------------------
+ PASS: a fully paid bill leaves the view
+(1 row)
+
+UPDATE 1
+ bill_id |  full_name   |   due_on   | outstanding_amount 
+---------+--------------+------------+--------------------
+       3 | Linda Mwenya | 2026-11-04 |              50.00
+(1 row)
+
+--- (f) index ---
+             assert_true              
+--------------------------------------
+ PASS: idx_bills_unpaid_due_on exists
+(1 row)
+
+--- (g) pr_refresh_receivables ---
+CALL
+CALL
+             assert_true              
+--------------------------------------
+ PASS: one row for today after reruns
+(1 row)
+
+                              assert_true                               
+------------------------------------------------------------------------
+ PASS: total equals all unpaid balances (50 + 50 + 170 + 54 + 66 = 390)
+(1 row)
+
+UPDATE 1
+CALL
+                           assert_true                           
+-----------------------------------------------------------------
+ PASS: rerun after a payment replaces the total (390 - 66 = 324)
+(1 row)
+
+ snapshot_date | total_due 
+---------------+-----------
+ 2026-11-24    |    324.00
+(1 row)
+
+=== Question 7: all tests passed ===
+-- psql exit code: 0

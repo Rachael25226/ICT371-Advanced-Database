@@ -1,0 +1,262 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-05-Hostel/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 5 - Hostel Room Allocation ================
+psql:Question-05-Hostel/01_tables.sql:11: NOTICE:  schema "q05_hostel" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+INSERT 0 6
+CALL
+CALL
+CALL
+CALL
+CALL
+UPDATE 1
+UPDATE 1
+ allocation_id | student_number | room_number | allocated_on | released_on | status 
+---------------+----------------+-------------+--------------+-------------+--------
+             1 | H2025-001      | A101        | 2026-09-25   |             | ACTIVE
+             2 | H2025-002      | A101        | 2026-09-25   |             | ACTIVE
+             3 | H2025-003      | A102        | 2026-10-10   |             | ACTIVE
+             4 | H2025-004      | A102        | 2026-10-10   | 2026-11-14  | ENDED
+             5 | H2025-005      | B201        | 2026-10-25   | 2026-11-19  | ENDED
+(5 rows)
+
+SET
+CREATE VIEW
+ room_id | room_number | capacity | occupied_beds | free_beds 
+---------+-------------+----------+---------------+-----------
+       1 | A101        |        2 |             2 |         0
+       2 | A102        |        3 |             1 |         2
+       3 | B201        |        2 |             0 |         2
+(3 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                           QUERY PLAN                            
+-----------------------------------------------------------------
+ Seq Scan on allocations  (cost=0.00..1.07 rows=1 width=12)
+   Filter: ((room_id = 1) AND ((status)::text = 'ACTIVE'::text))
+(2 rows)
+
+BEGIN
+SET
+                                           QUERY PLAN                                           
+------------------------------------------------------------------------------------------------
+ Index Scan using idx_allocations_active_room on allocations  (cost=0.13..8.15 rows=1 width=12)
+   Index Cond: (room_id = 1)
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ snapshot_date | room_id | occupied_beds | free_beds 
+---------------+---------+---------------+-----------
+ 2026-11-24    |       1 |             2 |         0
+ 2026-11-24    |       2 |             1 |         2
+ 2026-11-24    |       3 |             0 |         2
+(3 rows)
+
+CALL
+ snapshot_date | room_id | occupied_beds | free_beds 
+---------------+---------+---------------+-----------
+ 2026-11-24    |       1 |             2 |         0
+ 2026-11-24    |       2 |             1 |         2
+ 2026-11-24    |       3 |             0 |         2
+(3 rows)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                          expect_error                                                          
+--------------------------------------------------------------------------------------------------------------------------------
+ PASS: zero capacity rejected  [rejected: new row for relation "rooms" violates check constraint "chk_rooms_capacity_positive"]
+(1 row)
+
+                                                                     expect_error                                                                     
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: ACTIVE with a release date rejected  [rejected: new row for relation "allocations" violates check constraint "chk_allocations_status_release"]
+(1 row)
+
+                                                                      expect_error                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: ENDED without a release date rejected  [rejected: new row for relation "allocations" violates check constraint "chk_allocations_status_release"]
+(1 row)
+
+                                                                   expect_error                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: status other than ACTIVE/ENDED rejected  [rejected: new row for relation "allocations" violates check constraint "chk_allocations_status"]
+(1 row)
+
+       assert_true       
+-------------------------
+ PASS: room A101 is full
+(1 row)
+
+            assert_true             
+------------------------------------
+ PASS: room A102 is partly occupied
+(1 row)
+
+       assert_true        
+--------------------------
+ PASS: room B201 is empty
+(1 row)
+
+--- (b) fn_free_beds ---
+      assert_true      
+-----------------------
+ PASS: A101: 2 - 2 = 0
+(1 row)
+
+                         assert_true                         
+-------------------------------------------------------------
+ PASS: A102: 3 - 1 = 2 (the ENDED allocation does not count)
+(1 row)
+
+                assert_true                 
+--------------------------------------------
+ PASS: B201: 2 - 0 = 2 (ENDED history only)
+(1 row)
+
+                        expect_error                         
+-------------------------------------------------------------
+ PASS: unknown room rejected  [rejected: Unknown room_id 99]
+(1 row)
+
+--- (c) pr_allocate_room ---
+                           expect_error                            
+-------------------------------------------------------------------
+ PASS: unknown student rejected  [rejected: Unknown student_id 99]
+(1 row)
+
+                        expect_error                         
+-------------------------------------------------------------
+ PASS: unknown room rejected  [rejected: Unknown room_id 99]
+(1 row)
+
+                       expect_error                        
+-----------------------------------------------------------
+ PASS: full room A101 rejected  [rejected: Room 1 is full]
+(1 row)
+
+                                          expect_error                                           
+-------------------------------------------------------------------------------------------------
+ PASS: student 1 already ACTIVE rejected  [rejected: Student 1 already has an ACTIVE allocation]
+(1 row)
+
+                                           expect_error                                           
+--------------------------------------------------------------------------------------------------
+ PASS: missing allocation date rejected  [rejected: Allocation date (p_allocated_on) is required]
+(1 row)
+
+                   assert_true                    
+--------------------------------------------------
+ PASS: no allocation stored by the rejected calls
+(1 row)
+
+CALL
+                                    assert_true                                     
+------------------------------------------------------------------------------------
+ PASS: student with only ENDED history gets one ACTIVE allocation, released_on NULL
+(1 row)
+
+--- (d) trigger (direct SQL) ---
+                                                       expect_error                                                       
+--------------------------------------------------------------------------------------------------------------------------
+ PASS: direct insert into full room A101 rejected  [rejected: Room 1 is full: capacity 2, already 2 active allocation(s)]
+(1 row)
+
+                                                           expect_error                                                           
+----------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct insert of a second ACTIVE allocation for student 3 rejected  [rejected: Student 3 already has an ACTIVE allocation]
+(1 row)
+
+                                                               expect_error                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct UPDATE moving student 3 into full room A101 rejected  [rejected: Room 1 is full: capacity 2, already 2 active allocation(s)]
+(1 row)
+
+                                                                      expect_error                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: reactivating student 4's old ENDED allocation while student 4 is ACTIVE in B201 rejected  [rejected: Student 4 already has an ACTIVE allocation]
+(1 row)
+
+UPDATE 1
+                                           assert_true                                           
+-------------------------------------------------------------------------------------------------
+ PASS: updating an ACTIVE allocation in a FULL room is allowed (row excluded from its own count)
+(1 row)
+
+UPDATE 1
+INSERT 0 1
+                          assert_true                          
+---------------------------------------------------------------
+ PASS: after a release, a direct insert may take the freed bed
+(1 row)
+
+--- (e) view ---
+         assert_true         
+-----------------------------
+ PASS: view lists every room
+(1 row)
+
+                 assert_true                  
+----------------------------------------------
+ PASS: view free beds agree with fn_free_beds
+(1 row)
+
+ room_id | room_number | capacity | occupied_beds | free_beds 
+---------+-------------+----------+---------------+-----------
+       1 | A101        |        2 |             2 |         0
+       2 | A102        |        3 |             1 |         2
+       3 | B201        |        2 |             1 |         1
+(3 rows)
+
+--- (f) index ---
+               assert_true                
+------------------------------------------
+ PASS: idx_allocations_active_room exists
+(1 row)
+
+--- (g) pr_refresh_occupancy ---
+CALL
+CALL
+                  assert_true                  
+-----------------------------------------------
+ PASS: one row per room for today after reruns
+(1 row)
+
+                        assert_true                        
+-----------------------------------------------------------
+ PASS: snapshot values replaced with the current occupancy
+(1 row)
+
+ snapshot_date | room_id | occupied_beds | free_beds 
+---------------+---------+---------------+-----------
+ 2026-11-24    |       1 |             2 |         0
+ 2026-11-24    |       2 |             1 |         2
+ 2026-11-24    |       3 |             1 |         1
+(3 rows)
+
+=== Question 5: all tests passed ===
+-- psql exit code: 0

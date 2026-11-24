@@ -1,0 +1,275 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-03-Library/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 3 - Library Returns and Overdue Fines ================
+psql:Question-03-Library/01_tables.sql:7: NOTICE:  schema "q03_library" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+INSERT 0 6
+CALL
+CALL
+ loan_id |              title               |  borrower_name  | borrowed_on |   due_on   | returned_on | fine_amount | fine_as_of_today 
+---------+----------------------------------+-----------------+-------------+------------+-------------+-------------+------------------
+       1 | Database System Concepts         | Natasha Zulu    | 2026-11-04  | 2026-11-18 |             |        0.00 |            12.00
+       2 | Fundamentals of Database Systems | Joseph Tembo    | 2026-11-21  | 2026-12-05 |             |        0.00 |             0.00
+       3 | SQL Performance Explained        | Grace Lungu     | 2026-10-25  | 2026-11-08 | 2026-11-14  |       12.00 |            12.00
+       4 | Database System Concepts         | Peter Sakala    | 2026-11-09  | 2026-11-23 | 2026-11-23  |        0.00 |             0.00
+       5 | Fundamentals of Database Systems | Mercy Daka      | 2026-11-14  | 2026-11-22 |             |        0.00 |             4.00
+       6 | SQL Performance Explained        | Kelvin Chileshe | 2026-11-17  | 2026-11-24 |             |        0.00 |             0.00
+(6 rows)
+
+ audit_id | loan_id | old_returned_on | new_returned_on |          changed_at           
+----------+---------+-----------------+-----------------+-------------------------------
+        1 |       3 |                 | 2026-11-14      | 2026-11-24 19:41:22.493274+00
+        2 |       4 |                 | 2026-11-23      | 2026-11-24 19:41:22.497768+00
+(2 rows)
+
+SET
+CREATE VIEW
+ loan_id |              title               | borrower_name |   due_on   | fine_as_of_today 
+---------+----------------------------------+---------------+------------+------------------
+       1 | Database System Concepts         | Natasha Zulu  | 2026-11-18 |            12.00
+       5 | Fundamentals of Database Systems | Mercy Daka    | 2026-11-22 |             4.00
+(2 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                      QUERY PLAN                      
+------------------------------------------------------
+ Seq Scan on loans  (cost=0.00..1.07 rows=1 width=25)
+   Filter: ((returned_on IS NULL) AND (book_id = 1))
+(2 rows)
+
+BEGIN
+SET
+                                     QUERY PLAN                                      
+-------------------------------------------------------------------------------------
+ Index Scan using idx_loans_open_by_book on loans  (cost=0.13..8.15 rows=1 width=25)
+   Index Cond: (book_id = 1)
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ snapshot_date | overdue_count | total_fine 
+---------------+---------------+------------
+ 2026-11-24    |             2 |      16.00
+(1 row)
+
+CALL
+ snapshot_date | overdue_count | total_fine 
+---------------+---------------+------------
+ 2026-11-24    |             2 |      16.00
+(1 row)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                expect_error                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: due_on before borrowed_on rejected  [rejected: new row for relation "loans" violates check constraint "chk_loans_due_after_borrowed"]
+(1 row)
+
+                                                                       expect_error                                                                       
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: loan of an unknown book rejected (foreign key)  [rejected: insert or update on table "loans" violates foreign key constraint "loans_book_id_fkey"]
+(1 row)
+
+           assert_true           
+---------------------------------
+ PASS: three books and six loans
+(1 row)
+
+            assert_true            
+-----------------------------------
+ PASS: an open overdue loan exists
+(1 row)
+
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: an on-time loan exists (returned on the due date, no fine)
+(1 row)
+
+         assert_true          
+------------------------------
+ PASS: a returned loan exists
+(1 row)
+
+--- (b) fn_loan_fine ---
+             assert_true              
+--------------------------------------
+ PASS: open loan 6 days overdue = K12
+(1 row)
+
+                     assert_true                      
+------------------------------------------------------
+ PASS: an open loan keeps accumulating (K14 tomorrow)
+(1 row)
+
+                assert_true                 
+--------------------------------------------
+ PASS: loan not yet due = K0 (minimum zero)
+(1 row)
+
+        assert_true        
+---------------------------
+ PASS: loan due today = K0
+(1 row)
+
+                      assert_true                      
+-------------------------------------------------------
+ PASS: returned loan: fine frozen at return date (K12)
+(1 row)
+
+                 assert_true                 
+---------------------------------------------
+ PASS: returned loan: no growth after return
+(1 row)
+
+                                       assert_true                                       
+-----------------------------------------------------------------------------------------
+ PASS: returned loan: earlier p_as_of is used when it is before the return (3 days = K6)
+(1 row)
+
+             assert_true             
+-------------------------------------
+ PASS: returned on the due date = K0
+(1 row)
+
+                         expect_error                         
+--------------------------------------------------------------
+ PASS: unknown loan rejected  [rejected: Unknown loan_id 999]
+(1 row)
+
+--- (c) pr_return_loan ---
+                         expect_error                         
+--------------------------------------------------------------
+ PASS: unknown loan rejected  [rejected: Unknown loan_id 999]
+(1 row)
+
+                                        expect_error                                         
+---------------------------------------------------------------------------------------------
+ PASS: already returned loan rejected  [rejected: Loan 3 was already returned on 2026-11-14]
+(1 row)
+
+                                                         expect_error                                                         
+------------------------------------------------------------------------------------------------------------------------------
+ PASS: return before borrowed_on rejected  [rejected: Return date 2026-11-03 is before the borrow date 2026-11-04 for loan 1]
+(1 row)
+
+                                      expect_error                                       
+-----------------------------------------------------------------------------------------
+ PASS: missing return date rejected  [rejected: Return date (p_returned_on) is required]
+(1 row)
+
+                   assert_true                   
+-------------------------------------------------
+ PASS: loan 1 unchanged after the rejected calls
+(1 row)
+
+CALL
+                      assert_true                      
+-------------------------------------------------------
+ PASS: return date and final fine (K4) stored together
+(1 row)
+
+--- (d) trigger ---
+                      assert_true                       
+--------------------------------------------------------
+ PASS: each of the three returns produced one audit row
+(1 row)
+
+                          assert_true                          
+---------------------------------------------------------------
+ PASS: audit row holds OLD (NULL) and NEW (today) return dates
+(1 row)
+
+UPDATE 1
+UPDATE 1
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: updates that do not change returned_on create no audit row
+(1 row)
+
+UPDATE 1
+                     assert_true                     
+-----------------------------------------------------
+ PASS: a direct correction of returned_on is audited
+(1 row)
+
+ audit_id | loan_id | old_returned_on | new_returned_on |          changed_at           
+----------+---------+-----------------+-----------------+-------------------------------
+        1 |       3 |                 | 2026-11-14      | 2026-11-24 19:41:22.493274+00
+        2 |       4 |                 | 2026-11-23      | 2026-11-24 19:41:22.497768+00
+        3 |       5 |                 | 2026-11-24      | 2026-11-24 19:41:22.559478+00
+        4 |       3 | 2026-11-14      | 2026-11-15      | 2026-11-24 19:41:22.56537+00
+(4 rows)
+
+--- (e) view ---
+                                         assert_true                                          
+----------------------------------------------------------------------------------------------
+ PASS: v_overdue_loans lists only loan 1 (returned, not-yet-due and due-today loans excluded)
+(1 row)
+
+            assert_true             
+------------------------------------
+ PASS: fine as of today shown (K12)
+(1 row)
+
+ loan_id |          title           | borrower_name |   due_on   | fine_as_of_today 
+---------+--------------------------+---------------+------------+------------------
+       1 | Database System Concepts | Natasha Zulu  | 2026-11-18 |            12.00
+(1 row)
+
+--- (f) index ---
+             assert_true             
+-------------------------------------
+ PASS: idx_loans_open_by_book exists
+(1 row)
+
+--- (g) pr_refresh_overdue ---
+CALL
+CALL
+                   assert_true                   
+-------------------------------------------------
+ PASS: rerun keeps one row for the snapshot_date
+(1 row)
+
+                             assert_true                             
+---------------------------------------------------------------------
+ PASS: today: 1 overdue loan, K12 (loan 5 now returned, not counted)
+(1 row)
+
+CALL
+                                      assert_true                                      
+---------------------------------------------------------------------------------------
+ PASS: yesterday: loans 1 (K10) and 5 (K2) were unreturned and overdue -> 2 loans, K12
+(1 row)
+
+ snapshot_date | overdue_count | total_fine 
+---------------+---------------+------------
+ 2026-11-23    |             2 |      12.00
+ 2026-11-24    |             1 |      12.00
+(2 rows)
+
+=== Question 3: all tests passed ===
+-- psql exit code: 0

@@ -1,0 +1,304 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-02-University-Fees/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 2 - University Fee Payments ================
+psql:Question-02-University-Fees/01_tables.sql:9: NOTICE:  schema "q02_university_fees" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+CALL
+CALL
+CALL
+CALL
+CALL
+CALL
+ student_id | student_number |  full_name   | fee_due  | balance 
+------------+----------------+--------------+----------+---------
+          1 | 2024-0001      | Chanda Mwila | 15000.00 | 3000.00
+          2 | 2024-0002      | Bwalya Phiri | 12000.00 |    0.00
+          3 | 2024-0003      | Mutale Banda |  9000.00 | 9000.00
+(3 rows)
+
+ payment_id | student_id | amount  |  paid_on   
+------------+------------+---------+------------
+          1 |          1 | 5000.00 | 2026-11-21
+          2 |          2 | 4000.00 | 2026-11-21
+          3 |          1 | 4000.00 | 2026-11-22
+          4 |          2 | 4000.00 | 2026-11-23
+          5 |          1 | 3000.00 | 2026-11-23
+          6 |          2 | 4000.00 | 2026-11-23
+(6 rows)
+
+ audit_id | payment_id | student_id | amount  |           logged_at           
+----------+------------+------------+---------+-------------------------------
+        1 |          1 |          1 | 5000.00 | 2026-11-24 19:41:21.596976+00
+        2 |          2 |          2 | 4000.00 | 2026-11-24 19:41:21.603951+00
+        3 |          3 |          1 | 4000.00 | 2026-11-24 19:41:21.605165+00
+        4 |          4 |          2 | 4000.00 | 2026-11-24 19:41:21.606244+00
+        5 |          5 |          1 | 3000.00 | 2026-11-24 19:41:21.607065+00
+        6 |          6 |          2 | 4000.00 | 2026-11-24 19:41:21.607874+00
+(6 rows)
+
+SET
+CREATE VIEW
+ student_number |  full_name   | outstanding_balance 
+----------------+--------------+---------------------
+ 2024-0001      | Chanda Mwila |             3000.00
+ 2024-0003      | Mutale Banda |             9000.00
+(2 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                                           QUERY PLAN                                            
+-------------------------------------------------------------------------------------------------
+ Seq Scan on payments  (cost=0.00..1.15 rows=3 width=13)
+   Filter: ((student_id = 1) AND (paid_on <= CURRENT_DATE) AND (paid_on >= (CURRENT_DATE - 30)))
+(2 rows)
+
+BEGIN
+SET
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Index Scan using idx_payments_student_paid_on on payments  (cost=0.14..8.21 rows=3 width=13)
+   Index Cond: ((student_id = 1) AND (paid_on >= (CURRENT_DATE - 30)) AND (paid_on <= CURRENT_DATE))
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ collection_date | payment_count | total_amount 
+-----------------+---------------+--------------
+ 2026-11-23      |             3 |     11000.00
+(1 row)
+
+CALL
+ collection_date | payment_count | total_amount 
+-----------------+---------------+--------------
+ 2026-11-23      |             3 |     11000.00
+(1 row)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                expect_error                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: duplicate student_number rejected (UNIQUE)  [rejected: duplicate key value violates unique constraint "students_student_number_key"]
+(1 row)
+
+                                                                expect_error                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative fee_due rejected  [rejected: new row for relation "students" violates check constraint "chk_students_fee_due_non_negative"]
+(1 row)
+
+                                                                             expect_error                                                                              
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: payment for unknown student rejected (foreign key)  [rejected: insert or update on table "payments" violates foreign key constraint "payments_student_id_fkey"]
+(1 row)
+
+            assert_true             
+------------------------------------
+ PASS: at least six payments loaded
+(1 row)
+
+                assert_true                
+-------------------------------------------
+ PASS: student 3 initially has no payments
+(1 row)
+
+                   assert_true                    
+--------------------------------------------------
+ PASS: the three students have different balances
+(1 row)
+
+--- (b) fn_fee_balance ---
+              assert_true              
+---------------------------------------
+ PASS: student 1: 15000 - 12000 = 3000
+(1 row)
+
+            assert_true             
+------------------------------------
+ PASS: student 2: fully settled = 0
+(1 row)
+
+                      assert_true                       
+--------------------------------------------------------
+ PASS: student 3: no payments returns the full fee 9000
+(1 row)
+
+                            expect_error                            
+--------------------------------------------------------------------
+ PASS: unknown student rejected  [rejected: Unknown student_id 999]
+(1 row)
+
+--- (c) pr_receive_payment ---
+                                              expect_error                                               
+---------------------------------------------------------------------------------------------------------
+ PASS: NULL amount rejected  [rejected: Invalid payment amount <NULL>: amount must be greater than zero]
+(1 row)
+
+                                            expect_error                                            
+----------------------------------------------------------------------------------------------------
+ PASS: zero amount rejected  [rejected: Invalid payment amount 0: amount must be greater than zero]
+(1 row)
+
+                                               expect_error                                               
+----------------------------------------------------------------------------------------------------------
+ PASS: negative amount rejected  [rejected: Invalid payment amount -50: amount must be greater than zero]
+(1 row)
+
+                                                                               expect_error                                                                               
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: payment above the 3000 balance rejected  [rejected: Payment of 3000.01 exceeds the outstanding balance of 3000.00 for student 1 (credit balances are not allowed)]
+(1 row)
+
+                                                                           expect_error                                                                            
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: any payment by a settled student rejected  [rejected: Payment of 1 exceeds the outstanding balance of 0.00 for student 2 (credit balances are not allowed)]
+(1 row)
+
+                            expect_error                            
+--------------------------------------------------------------------
+ PASS: unknown student rejected  [rejected: Unknown student_id 999]
+(1 row)
+
+                                 expect_error                                  
+-------------------------------------------------------------------------------
+ PASS: missing date rejected  [rejected: Payment date (p_paid_on) is required]
+(1 row)
+
+                 assert_true                  
+----------------------------------------------
+ PASS: no payment stored by the invalid calls
+(1 row)
+
+CALL
+         assert_true          
+------------------------------
+ PASS: valid payment inserted
+(1 row)
+
+               assert_true                
+------------------------------------------
+ PASS: fee_due NOT changed by the payment
+(1 row)
+
+                  assert_true                   
+------------------------------------------------
+ PASS: student 3 balance now 9000 - 2500 = 6500
+(1 row)
+
+CALL
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: paying exactly the balance settles the account (no credit)
+(1 row)
+
+--- (d) trigger ---
+              assert_true              
+---------------------------------------
+ PASS: one audit row for every payment
+(1 row)
+
+                            assert_true                             
+--------------------------------------------------------------------
+ PASS: every audit row matches its payment (ID, student and amount)
+(1 row)
+
+                          assert_true                          
+---------------------------------------------------------------
+ PASS: pr_receive_payment itself never writes to payment_audit
+(1 row)
+
+INSERT 0 1
+                       assert_true                        
+----------------------------------------------------------
+ PASS: a direct SQL insert is also audited by the trigger
+(1 row)
+
+ audit_id | payment_id | student_id | amount  |           logged_at           
+----------+------------+------------+---------+-------------------------------
+        1 |          1 |          1 | 5000.00 | 2026-11-24 19:41:21.596976+00
+        2 |          2 |          2 | 4000.00 | 2026-11-24 19:41:21.603951+00
+        3 |          3 |          1 | 4000.00 | 2026-11-24 19:41:21.605165+00
+        4 |          4 |          2 | 4000.00 | 2026-11-24 19:41:21.606244+00
+        5 |          5 |          1 | 3000.00 | 2026-11-24 19:41:21.607065+00
+        6 |          6 |          2 | 4000.00 | 2026-11-24 19:41:21.607874+00
+        7 |          8 |          3 | 2500.00 | 2026-11-24 19:41:21.644244+00
+        8 |          9 |          1 | 3000.00 | 2026-11-24 19:41:21.646108+00
+        9 |         10 |          3 |  100.00 | 2026-11-24 19:41:21.650573+00
+(9 rows)
+
+--- (e) view ---
+                     assert_true                      
+------------------------------------------------------
+ PASS: v_fee_balances excludes fully settled students
+(1 row)
+
+               assert_true               
+-----------------------------------------
+ PASS: student 3 shown with balance 6400
+(1 row)
+
+                  assert_true                  
+-----------------------------------------------
+ PASS: settled students 1 and 2 are not listed
+(1 row)
+
+ student_number |  full_name   | outstanding_balance 
+----------------+--------------+---------------------
+ 2024-0003      | Mutale Banda |             6400.00
+(1 row)
+
+--- (f) index ---
+                assert_true                
+-------------------------------------------
+ PASS: idx_payments_student_paid_on exists
+(1 row)
+
+--- (g) pr_refresh_collections ---
+CALL
+CALL
+                  assert_true                   
+------------------------------------------------
+ PASS: rerun keeps one summary row for the date
+(1 row)
+
+                               assert_true                                
+--------------------------------------------------------------------------
+ PASS: count and total equal the real payments for the date (not doubled)
+(1 row)
+
+CALL
+                   assert_true                   
+-------------------------------------------------
+ PASS: a date with no payments is stored as zero
+(1 row)
+
+ collection_date | payment_count | total_amount 
+-----------------+---------------+--------------
+ 2026-10-25      |             0 |         0.00
+ 2026-11-23      |             3 |     11000.00
+ 2026-11-24      |             3 |      5600.00
+(3 rows)
+
+=== Question 2: all tests passed ===
+-- psql exit code: 0

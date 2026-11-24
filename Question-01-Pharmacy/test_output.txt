@@ -1,0 +1,287 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-01-Pharmacy/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 1 - Pharmacy Stock and Daily Sales ================
+psql:Question-01-Pharmacy/01_tables.sql:5: NOTICE:  schema "q01_pharmacy" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 4
+CALL
+CALL
+CALL
+CALL
+CALL
+CALL
+ medicine_id |         medicine_name          | unit_price | stock_qty 
+-------------+--------------------------------+------------+-----------
+           1 | Paracetamol 500mg (pack of 10) |       2.50 |       165
+           2 | Amoxicillin 250mg (pack of 15) |       8.75 |        45
+           3 | Cough Syrup 100ml              |      25.00 |        11
+           4 | Oral Rehydration Salts sachet  |       3.00 |         9
+(4 rows)
+
+ sale_id | medicine_id | quantity | unit_price |  sold_on   
+---------+-------------+----------+------------+------------
+       1 |           1 |       20 |       2.50 | 2026-11-22
+       2 |           2 |        5 |       8.75 | 2026-11-22
+       3 |           3 |        4 |      25.00 | 2026-11-23
+       4 |           1 |       15 |       2.50 | 2026-11-23
+       5 |           4 |        3 |       3.00 | 2026-11-23
+       6 |           2 |       10 |       8.75 | 2026-11-24
+(6 rows)
+
+ audit_id | medicine_id | old_qty | new_qty |          changed_at           
+----------+-------------+---------+---------+-------------------------------
+        1 |           1 |     200 |     180 | 2026-11-24 19:41:20.945833+00
+        2 |           2 |      60 |      55 | 2026-11-24 19:41:20.95106+00
+        3 |           3 |      15 |      11 | 2026-11-24 19:41:20.951808+00
+        4 |           1 |     180 |     165 | 2026-11-24 19:41:20.952411+00
+        5 |           4 |      12 |       9 | 2026-11-24 19:41:20.953093+00
+        6 |           2 |      55 |      45 | 2026-11-24 19:41:20.954063+00
+(6 rows)
+
+SET
+CREATE VIEW
+ medicine_id |         medicine_name         | unit_price | remaining_stock 
+-------------+-------------------------------+------------+-----------------
+           4 | Oral Rehydration Salts sachet |       3.00 |               9
+(1 row)
+
+CALL
+ medicine_id |         medicine_name         | unit_price | remaining_stock 
+-------------+-------------------------------+------------+-----------------
+           3 | Cough Syrup 100ml             |      25.00 |               9
+           4 | Oral Rehydration Salts sachet |       3.00 |               9
+(2 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                                           QUERY PLAN                                            
+-------------------------------------------------------------------------------------------------
+ Seq Scan on sales  (cost=0.00..1.18 rows=2 width=18)
+   Filter: ((medicine_id = 1) AND (sold_on <= CURRENT_DATE) AND (sold_on >= (CURRENT_DATE - 7)))
+(2 rows)
+
+BEGIN
+SET
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Index Scan using idx_sales_medicine_sold_on on sales  (cost=0.14..8.19 rows=2 width=18)
+   Index Cond: ((medicine_id = 1) AND (sold_on >= (CURRENT_DATE - 7)) AND (sold_on <= CURRENT_DATE))
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ sales_date | total_qty | total_amount 
+------------+-----------+--------------
+ 2026-11-23 |        22 |       146.50
+(1 row)
+
+CALL
+ sales_date | total_qty | total_amount 
+------------+-----------+--------------
+ 2026-11-23 |        22 |       146.50
+(1 row)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints ---
+                                                           expect_error                                                           
+----------------------------------------------------------------------------------------------------------------------------------
+ PASS: zero price rejected  [rejected: new row for relation "medicines" violates check constraint "chk_medicines_price_positive"]
+(1 row)
+
+                                                               expect_error                                                               
+------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: negative stock rejected  [rejected: new row for relation "medicines" violates check constraint "chk_medicines_stock_non_negative"]
+(1 row)
+
+                                                                              expect_error                                                                              
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: sale for a non-existent medicine rejected by foreign key  [rejected: insert or update on table "sales" violates foreign key constraint "sales_medicine_id_fkey"]
+(1 row)
+
+                  assert_true                  
+-----------------------------------------------
+ PASS: at least 3 medicines and 6 sales loaded
+(1 row)
+
+--- (b) fn_sale_value ---
+                 assert_true                 
+---------------------------------------------
+ PASS: fn_sale_value(1, 3) = 3 x 2.50 = 7.50
+(1 row)
+
+                             expect_error                             
+----------------------------------------------------------------------
+ PASS: unknown medicine rejected  [rejected: Unknown medicine_id 999]
+(1 row)
+
+                                              expect_error                                              
+--------------------------------------------------------------------------------------------------------
+ PASS: zero quantity rejected  [rejected: Invalid quantity 0: quantity must be a positive whole number]
+(1 row)
+
+                                                expect_error                                                 
+-------------------------------------------------------------------------------------------------------------
+ PASS: negative quantity rejected  [rejected: Invalid quantity -2: quantity must be a positive whole number]
+(1 row)
+
+                                                expect_error                                                 
+-------------------------------------------------------------------------------------------------------------
+ PASS: NULL quantity rejected  [rejected: Invalid quantity <NULL>: quantity must be a positive whole number]
+(1 row)
+
+--- (c) pr_record_sale: valid sale ---
+UPDATE 1
+CALL
+               assert_true                
+------------------------------------------
+ PASS: stock deducted exactly once (by 4)
+(1 row)
+
+                            assert_true                            
+-------------------------------------------------------------------
+ PASS: sale stores the CURRENT price (2.75 after the price change)
+(1 row)
+
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: one audit row for the sale; none for the price-only update
+(1 row)
+
+--- (c) pr_record_sale: invalid sales leave both tables unchanged ---
+                                                expect_error                                                
+------------------------------------------------------------------------------------------------------------
+ PASS: overselling rejected  [rejected: Insufficient stock for medicine 1: requested 100000, available 161]
+(1 row)
+
+                             expect_error                             
+----------------------------------------------------------------------
+ PASS: unknown medicine rejected  [rejected: Unknown medicine_id 999]
+(1 row)
+
+                                      expect_error                                       
+-----------------------------------------------------------------------------------------
+ PASS: zero quantity rejected  [rejected: Invalid quantity 0: quantity must be positive]
+(1 row)
+
+                                  expect_error                                   
+---------------------------------------------------------------------------------
+ PASS: missing sale date rejected  [rejected: Sale date (p_sold_on) is required]
+(1 row)
+
+                              assert_true                              
+-----------------------------------------------------------------------
+ PASS: after the four invalid sales, sales and medicines are unchanged
+(1 row)
+
+--- (d) trigger ---
+UPDATE 1
+                   assert_true                   
+-------------------------------------------------
+ PASS: stock set to the same value: no audit row
+(1 row)
+
+UPDATE 1
+                           assert_true                           
+-----------------------------------------------------------------
+ PASS: restock of 50 audited with correct OLD and NEW quantities
+(1 row)
+
+ audit_id | medicine_id | old_qty | new_qty |          changed_at           
+----------+-------------+---------+---------+-------------------------------
+        1 |           1 |     200 |     180 | 2026-11-24 19:41:20.945833+00
+        2 |           2 |      60 |      55 | 2026-11-24 19:41:20.95106+00
+        3 |           3 |      15 |      11 | 2026-11-24 19:41:20.951808+00
+        4 |           1 |     180 |     165 | 2026-11-24 19:41:20.952411+00
+        5 |           4 |      12 |       9 | 2026-11-24 19:41:20.953093+00
+        6 |           2 |      55 |      45 | 2026-11-24 19:41:20.954063+00
+        7 |           3 |      11 |       9 | 2026-11-24 19:41:20.959256+00
+        8 |           1 |     165 |     161 | 2026-11-24 19:41:20.984427+00
+        9 |           2 |      45 |      95 | 2026-11-24 19:41:20.990185+00
+(9 rows)
+
+--- (e) view ---
+                 assert_true                 
+---------------------------------------------
+ PASS: v_low_stock lists only stock below 10
+(1 row)
+
+                   assert_true                   
+-------------------------------------------------
+ PASS: v_low_stock lists every medicine below 10
+(1 row)
+
+ medicine_id |         medicine_name         | unit_price | remaining_stock 
+-------------+-------------------------------+------------+-----------------
+           3 | Cough Syrup 100ml             |      25.00 |               9
+           4 | Oral Rehydration Salts sachet |       3.00 |               9
+(2 rows)
+
+--- (f) index ---
+               assert_true               
+-----------------------------------------
+ PASS: idx_sales_medicine_sold_on exists
+(1 row)
+
+--- (g) pr_refresh_sales rerun behaviour ---
+CALL
+CALL
+CALL
+                      assert_true                       
+--------------------------------------------------------
+ PASS: three runs for the same day keep exactly one row
+(1 row)
+
+                            assert_true                             
+--------------------------------------------------------------------
+ PASS: totals equal the real sales for the day (not double-counted)
+(1 row)
+
+CALL
+CALL
+                                 assert_true                                 
+-----------------------------------------------------------------------------
+ PASS: rerun after a new sale replaces the totals with the new correct value
+(1 row)
+
+CALL
+                 assert_true                  
+----------------------------------------------
+ PASS: a day with no sales is stored as zeros
+(1 row)
+
+                      expect_error                      
+--------------------------------------------------------
+ PASS: NULL day rejected  [rejected: p_day is required]
+(1 row)
+
+ sales_date | total_qty | total_amount 
+------------+-----------+--------------
+ 2026-10-25 |         0 |         0.00
+ 2026-11-23 |        22 |       146.50
+ 2026-11-24 |        17 |       151.25
+(3 rows)
+
+=== Question 1: all tests passed ===
+-- psql exit code: 0

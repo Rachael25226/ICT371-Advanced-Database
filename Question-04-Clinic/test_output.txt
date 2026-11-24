@@ -1,0 +1,253 @@
+-- Actual output of: psql -d ict371 -v ON_ERROR_STOP=1 -f Question-04-Clinic/run_question.sql
+-- PostgreSQL 18.7 | run on 2026-11-24 19:41 UTC | CURRENT_DATE = 2026-11-24
+-- pg_cron was not installed on the test server, so 09_job_schedule.sql was skipped (see README).
+
+================ Question 4 - Clinic Appointment Scheduling ================
+psql:Question-04-Clinic/01_tables.sql:9: NOTICE:  schema "q04_clinic" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+SET
+CREATE FUNCTION
+SET
+CREATE PROCEDURE
+SET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+INSERT 0 3
+INSERT 0 3
+INSERT 0 3
+CALL
+CALL
+CALL
+ appointment_id |    patient    |      doctor      | appointment_day | slot_time |  status   
+----------------+---------------+------------------+-----------------+-----------+-----------
+              1 | Alice Mulenga | Dr. Esther Ngoma | 2026-11-23      | 09:00:00  | ATTENDED
+              2 | Brian Kunda   | Dr. Esther Ngoma | 2026-11-23      | 10:00:00  | CANCELLED
+              3 | Charity Mumba | Dr. Esther Ngoma | 2026-11-23      | 10:00:00  | ATTENDED
+              4 | Brian Kunda   | Dr. Esther Ngoma | 2026-11-24      | 09:00:00  | BOOKED
+              5 | Charity Mumba | Dr. Felix Mwansa | 2026-11-24      | 11:00:00  | BOOKED
+              6 | Alice Mulenga | Dr. Ruth Chanda  | 2026-11-25      | 12:00:00  | BOOKED
+(6 rows)
+
+SET
+CREATE VIEW
+ slot_time | patient_name  |   doctor_name    
+-----------+---------------+------------------
+ 09:00:00  | Brian Kunda   | Dr. Esther Ngoma
+ 11:00:00  | Charity Mumba | Dr. Felix Mwansa
+(2 rows)
+
+SET
+CREATE INDEX
+ANALYZE
+                            QUERY PLAN                            
+------------------------------------------------------------------
+ Seq Scan on appointments  (cost=0.00..1.10 rows=1 width=20)
+   Filter: ((doctor_id = 1) AND (appointment_day = CURRENT_DATE))
+(2 rows)
+
+BEGIN
+SET
+                                           QUERY PLAN                                            
+-------------------------------------------------------------------------------------------------
+ Index Scan using idx_appointments_day_doctor on appointments  (cost=0.14..8.16 rows=1 width=20)
+   Index Cond: ((appointment_day = CURRENT_DATE) AND (doctor_id = 1))
+(2 rows)
+
+ROLLBACK
+SET
+CREATE PROCEDURE
+CALL
+ summary_date | booked_count | attended_count | cancelled_count 
+--------------+--------------+----------------+-----------------
+ 2026-11-23   |            0 |              2 |               1
+(1 row)
+
+CALL
+ summary_date | booked_count | attended_count | cancelled_count 
+--------------+--------------+----------------+-----------------
+ 2026-11-23   |            0 |              2 |               1
+(1 row)
+
+NOTE: pg_cron is not installed in this database - 09_job_schedule.sql was skipped.
+SET
+CREATE FUNCTION
+CREATE FUNCTION
+--- (a) constraints and seed data ---
+                                                                         expect_error                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: status outside BOOKED/ATTENDED/CANCELLED rejected  [rejected: new row for relation "appointments" violates check constraint "chk_appointments_status"]
+(1 row)
+
+                                                                         expect_error                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: unsupported slot rejected by CHECK on direct insert  [rejected: new row for relation "appointments" violates check constraint "chk_appointments_slot"]
+(1 row)
+
+                      assert_true                      
+-------------------------------------------------------
+ PASS: three patients, three doctors, six appointments
+(1 row)
+
+              assert_true               
+----------------------------------------
+ PASS: seed data contains no slot clash
+(1 row)
+
+--- (b) fn_daily_load ---
+                           assert_true                           
+-----------------------------------------------------------------
+ PASS: doctor 1 yesterday: 2 (cancelled appointment not counted)
+(1 row)
+
+       assert_true       
+-------------------------
+ PASS: doctor 1 today: 1
+(1 row)
+
+              assert_true               
+----------------------------------------
+ PASS: a day with no bookings returns 0
+(1 row)
+
+                          expect_error                           
+-----------------------------------------------------------------
+ PASS: unknown doctor rejected  [rejected: Unknown doctor_id 99]
+(1 row)
+
+--- (c) pr_book_appointment ---
+                           expect_error                            
+-------------------------------------------------------------------
+ PASS: unknown patient rejected  [rejected: Unknown patient_id 99]
+(1 row)
+
+                          expect_error                           
+-----------------------------------------------------------------
+ PASS: unknown doctor rejected  [rejected: Unknown doctor_id 99]
+(1 row)
+
+                                              expect_error                                               
+---------------------------------------------------------------------------------------------------------
+ PASS: past date rejected  [rejected: Invalid appointment date 2026-11-23: a past date cannot be booked]
+(1 row)
+
+                                                   expect_error                                                    
+-------------------------------------------------------------------------------------------------------------------
+ PASS: unsupported slot 09:30 rejected  [rejected: Unsupported slot 09:30:00: choose 09:00, 10:00, 11:00 or 12:00]
+(1 row)
+
+                                                   expect_error                                                    
+-------------------------------------------------------------------------------------------------------------------
+ PASS: unsupported slot 14:00 rejected  [rejected: Unsupported slot 14:00:00: choose 09:00, 10:00, 11:00 or 12:00]
+(1 row)
+
+                                                                         expect_error                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: clash with appointment 4 rejected (by the trigger)  [rejected: Slot clash: doctor 1 already has a non-cancelled appointment on 2026-11-24 at 09:00:00]
+(1 row)
+
+                 assert_true                  
+----------------------------------------------
+ PASS: no row stored by the rejected bookings
+(1 row)
+
+CALL
+                   assert_true                   
+-------------------------------------------------
+ PASS: valid booking inserted with status BOOKED
+(1 row)
+
+--- (d) trigger ---
+                                                                           expect_error                                                                           
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: direct SQL insert clashing with appointment 5 rejected  [rejected: Slot clash: doctor 2 already has a non-cancelled appointment on 2026-11-24 at 11:00:00]
+(1 row)
+
+                                                                               expect_error                                                                               
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: UPDATE moving appointment 5 onto doctor 1 09:00 today rejected  [rejected: Slot clash: doctor 1 already has a non-cancelled appointment on 2026-11-24 at 09:00:00]
+(1 row)
+
+                                                                                      expect_error                                                                                      
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ PASS: un-cancelling appointment 2 into the slot now used by appointment 3 rejected  [rejected: Slot clash: doctor 1 already has a non-cancelled appointment on 2026-11-23 at 10:00:00]
+(1 row)
+
+UPDATE 1
+                           assert_true                           
+-----------------------------------------------------------------
+ PASS: UPDATE of the same appointment does not clash with itself
+(1 row)
+
+UPDATE 1
+INSERT 0 1
+                           assert_true                            
+------------------------------------------------------------------
+ PASS: a CANCELLED row may share a slot with a booked appointment
+(1 row)
+
+UPDATE 1
+CALL
+                      assert_true                      
+-------------------------------------------------------
+ PASS: after cancellation the slot can be booked again
+(1 row)
+
+--- (e) view ---
+                     assert_true                      
+------------------------------------------------------
+ PASS: view shows exactly today's BOOKED appointments
+(1 row)
+
+                        assert_true                         
+------------------------------------------------------------
+ PASS: view exposes only slot, patient name and doctor name
+(1 row)
+
+ slot_time | patient_name |   doctor_name    
+-----------+--------------+------------------
+ 09:00:00  | Brian Kunda  | Dr. Esther Ngoma
+ 11:00:00  | Brian Kunda  | Dr. Felix Mwansa
+(2 rows)
+
+--- (f) index ---
+                     assert_true                     
+-----------------------------------------------------
+ PASS: non-unique idx_appointments_day_doctor exists
+(1 row)
+
+--- (g) pr_refresh_clinic_summary ---
+CALL
+CALL
+              assert_true               
+----------------------------------------
+ PASS: rerun keeps one row for the date
+(1 row)
+
+                    assert_true                     
+----------------------------------------------------
+ PASS: yesterday: 0 booked, 2 attended, 1 cancelled
+(1 row)
+
+CALL
+UPDATE 1
+CALL
+                        assert_true                        
+-----------------------------------------------------------
+ PASS: rerun after a status change replaces today's counts
+(1 row)
+
+ summary_date | booked_count | attended_count | cancelled_count 
+--------------+--------------+----------------+-----------------
+ 2026-11-23   |            0 |              2 |               1
+ 2026-11-24   |            1 |              1 |               2
+(2 rows)
+
+=== Question 4: all tests passed ===
+-- psql exit code: 0
